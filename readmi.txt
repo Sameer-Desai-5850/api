@@ -1,0 +1,233 @@
+Step 1: Setup Project Folder Structure
+Create the Project Folder: Open your terminal and create a new directory for the project.
+
+bash
+Copy code
+mkdir product-app
+cd product-app
+Initialize Node.js Project:
+
+bash
+Copy code
+npm init -y
+Install Dependencies: Install the required dependencies (express for the server and mysql2 for the database).
+
+bash
+Copy code
+npm install express mysql2
+Create Folder Structure: Organize your files as follows:
+
+bash
+Copy code
+mkdir -p src/config src/controller src/router frontend
+Final folder structure:
+
+arduino
+Copy code
+product-app/
+├── src/
+│   ├── config/
+│   ├── controller/
+│   ├── router/
+├── frontend/
+
+
+Step 2: Configure Database Connection
+File: src/config/DbConfig.js
+Create the file to configure the MySQL connection.
+
+javascript
+Copy code
+// src/config/DbConfig.js
+import { createConnection } from "mysql2";
+
+export function createConnectionObject() {
+    return createConnection({
+        host: "localhost",
+        user: "root",
+        password: "cdac",
+        database: "db"
+    });
+}
+
+export function establishConnection() {
+    const connection = createConnectionObject();
+    connection.connect((error) => {
+        if (error) {
+            console.log("Error connecting to the database:", error);
+        } else {
+            console.log("Connected to the database successfully.");
+        }
+    });
+    return connection;
+}
+Step 3: Set Up Controllers for Product
+File: src/controller/ProductController.js
+Create this file to define how products are saved and retrieved from the database.
+
+javascript
+Copy code
+// src/controller/ProductController.js
+import { createConnectionObject } from "../config/DbConfig.js";
+
+const connection = createConnectionObject();
+
+export function saveProduct(request, response) {
+    try {
+        const product = request.body;
+        const insertQuery = `INSERT INTO product (id, name, price, quantity, description) 
+                             VALUES (${product.id}, '${product.name}', ${product.price}, ${product.quantity}, '${product.description}')`;
+
+        connection.query(insertQuery, (error) => {
+            if (error) {
+                response.status(500).send({ message: "Error saving product" });
+            } else {
+                response.status(201).send({ message: "Product saved successfully" });
+            }
+        });
+    } catch (error) {
+        response.status(500).send({ message: "Something went wrong" });
+    }
+}
+
+export function getAllProduct(request, response) {
+    try {
+        const fetchQuery = "SELECT * FROM product";
+        connection.query(fetchQuery, (error, result) => {
+            if (error) {
+                response.status(500).send({ message: "Error fetching products" });
+            } else {
+                response.status(200).send(result);
+            }
+        });
+    } catch (error) {
+        response.status(500).send({ message: "Something went wrong" });
+    }
+}
+Step 4: Define Routes for Product API
+File: src/router/ProductRouter.js
+Create this file to define routes for saving and retrieving products.
+
+javascript
+Copy code
+// src/router/ProductRouter.js
+import { Router } from "express";
+import { getAllProduct, saveProduct } from "../controller/ProductController.js";
+
+const productRouter = Router();
+
+productRouter.post("/save", saveProduct);
+productRouter.get("/getAll", getAllProduct);
+
+export default productRouter;
+Step 5: Set Up Express Server
+File: src/server.js
+Create this file to set up the Express server and integrate all components.
+
+javascript
+Copy code
+// src/server.js
+import express from 'express';
+import { establishConnection } from './config/DbConfig.js';
+import productRouter from './router/ProductRouter.js';
+
+const app = express();
+
+app.use(express.json());
+app.use("/products", productRouter);
+
+app.listen(9800, () => {
+    console.log('Server running on http://localhost:9800');
+    establishConnection();
+});
+Command to Run the Server:
+
+bash
+Copy code
+node src/server.js
+You should see:
+
+arduino
+Copy code
+Server running on http://localhost:9800
+Connected to the database successfully.
+Step 6: Create Frontend HTML Form
+File: frontend/index.html
+This HTML file includes a form for adding products and a div to display messages.
+
+html
+Copy code
+<!-- frontend/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Product</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+</head>
+<body>
+    <h1>Add a Product</h1>
+    <form id="productForm">
+        <input type="number" id="id" placeholder="Product ID" required />
+        <input type="text" id="name" placeholder="Product Name" required />
+        <input type="number" id="price" placeholder="Price" required />
+        <input type="number" id="quantity" placeholder="Quantity" required />
+        <textarea id="description" placeholder="Product Description" required></textarea>
+        <button type="submit">Add Product</button>
+    </form>
+    <div id="message"></div>
+    <script src="app.js"></script>
+</body>
+</html>
+Step 7: Add AJAX Logic to Submit Product Data
+File: frontend/app.js
+This JavaScript file sends an AJAX request to save the product when the form is submitted.
+
+javascript
+Copy code
+// frontend/app.js
+$(document).ready(function() {
+    $('#productForm').submit(function(e) {
+        e.preventDefault();
+
+        const productData = {
+            id: $('#id').val(),
+            name: $('#name').val(),
+            price: $('#price').val(),
+            quantity: $('#quantity').val(),
+            description: $('#description').val(),
+        };
+
+        $.ajax({
+            url: 'http://localhost:9800/products/save',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(productData),
+            success: function(response) {
+                $('#message').text('Product added successfully!');
+                $('#productForm')[0].reset();
+            },
+            error: function(xhr, status, error) {
+                $('#message').text('Error adding product: ' + error);
+            }
+        });
+    });
+});
+Step 8: Run and Test the Application
+Start the Server:
+
+bash
+Copy code
+node src/server.js
+Open the Frontend: Open frontend/index.html in your browser.
+
+Test the Form:
+
+Enter product details and submit the form.
+On success, you should see a success message and the form fields should reset.
+Key Points Recap
+Folder Structure: Organize files into config, controller, router, and frontend folders for scalability.
+AJAX in Frontend: Use AJAX to send data from the frontend to the backend without page refresh.
+Error Handling: Implement error handling in both controller functions and AJAX logic for better debugging.
+Database Connection: Use a separate configuration file for the database connection, making it reusable and modular.
